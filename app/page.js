@@ -228,7 +228,7 @@ function StudentHome({ student, db }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div className="lg:col-span-2 space-y-4">
-        <Card title="Weekly Planner" right={<Pill intent="info">Demo Data</Pill>}>
+        <Card title="This Week's Plan (Live Demo)" right={<Pill intent="info">Demo Data</Pill>}>
           <div className="space-y-3">
             {upcoming.map((a) => (
               <div key={a.id} className="flex items-center justify-between">

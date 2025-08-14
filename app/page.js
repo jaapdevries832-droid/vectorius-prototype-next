@@ -253,7 +253,7 @@ function StudentHome({ student, db }) {
             ))}
           </div>
         </Card>
-        <Card title="Assignments">
+        <Card title="Homework & Projects">
           <AssignmentTable rows={assignments} />
         </Card>
       </div>

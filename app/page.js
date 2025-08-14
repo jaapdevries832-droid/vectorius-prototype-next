@@ -258,7 +258,7 @@ function StudentHome({ student, db }) {
         </Card>
       </div>
       <div className="space-y-4">
-        <Card title="Progress Overview">
+        <Card title="Your Progress">
           <div className="space-y-4">
             {progress.map((p) => (
               <div key={p.id}>

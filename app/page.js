@@ -108,7 +108,7 @@ const seed = {
   students: [
     {
       id: 'stu01',
-      name: 'Alex Johnson',
+      name: 'Jaap de Vries',
       parentId: 'par01',
       mentorId: 'men01',
       assignments: ['ass01', 'ass02', 'ass03'],

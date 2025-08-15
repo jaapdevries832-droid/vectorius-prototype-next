@@ -1,4 +1,4 @@
-"# vectorius-prototype-next" 
+# vectorius-prototype-next" 
 Vectorius Prototype
 
 A role-based dashboard prototype built with Next.js, React, and Tailwind CSS.

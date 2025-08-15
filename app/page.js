@@ -3,6 +3,9 @@
 
 import React, { useState, useMemo } from 'react';
 import './globals.css';
+import ProgressBar from "../components/ProgressBar";
+import Pill from "../components/Pill";
+
 
 // --- UI utility components ---
 
@@ -68,27 +71,29 @@ const Card = ({ title, children, right }) => (
   </div>
 );
 
-// Pill style labels used for statuses and tags; different colours by intent
-const Pill = ({ children, intent = 'default' }) => {
-  const styles = {
-    default: 'bg-gray-100 text-gray-800',
-    success: 'bg-emerald-100 text-emerald-700',
-    warn: 'bg-amber-100 text-amber-800',
-    danger: 'bg-rose-100 text-rose-700',
-    info: 'bg-indigo-100 text-indigo-700',
-  }[intent];
-  return <span className={`text-xs px-2 py-1 rounded-full ${styles}`}>{children}</span>;
-};
+// this is a change
 
-// Simple horizontal progress bar used in progress displays
-const ProgressBar = ({ value }) => (
-  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-    <div
-      className="h-full bg-blue-600"
-      style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
-    />
-  </div>
-);
+// Pill style labels used for statuses and tags; different colours by intent
+// const Pill = ({ children, intent = 'default' }) => {
+//   const styles = {
+//     default: 'bg-gray-100 text-gray-800',
+//     success: 'bg-emerald-100 text-emerald-700',
+//     warn: 'bg-amber-100 text-amber-800',
+//     danger: 'bg-rose-100 text-rose-700',
+//     info: 'bg-indigo-100 text-indigo-700',
+//   }[intent];
+//   return <span className={`text-xs px-2 py-1 rounded-full ${styles}`}>{children}</span>;
+// };
+
+// // Simple horizontal progress bar used in progress displays
+// const ProgressBar = ({ value }) => (
+//   <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+//     <div
+//       className="h-full bg-blue-600"
+//       style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
+//     />
+//   </div>
+// );
 
 // --- Seeded demo data according to shared data model ---
 const seed = {
@@ -103,7 +108,7 @@ const seed = {
   students: [
     {
       id: 'stu01',
-      name: 'Alex Johnson',
+      name: 'Jaap de Vries',
       parentId: 'par01',
       mentorId: 'men01',
       assignments: ['ass01', 'ass02', 'ass03'],

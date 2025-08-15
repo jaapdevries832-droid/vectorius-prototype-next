@@ -1,6 +1,8 @@
+import "./globals.css";
+
 export const metadata = {
-  title: 'Vectorius Prototype',
-  description: 'Role-based dashboards for students, parents, and mentors',
+  title: "Vectorius Prototype",
+  description: "Role-based dashboards for students, parents, and mentors",
 };
 
 export default function RootLayout({ children }) {

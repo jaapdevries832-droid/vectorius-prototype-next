@@ -1,88 +1,111 @@
-# vectorius-prototype-next" 
-Vectorius Prototype
+# Vectorius — Role-Based Dashboard Prototype
 
-A role-based dashboard prototype built with Next.js, React, and Tailwind CSS.
-Supports three roles:
+Vectorius is a role-based dashboard for students, mentors, and parents.  
+Built with **Next.js (React framework)** and **Tailwind CSS (utility-first styling)**, deployed on **Vercel (hosting platform)**.  
+Backend powered by **Supabase (hosted PostgreSQL database + Authentication + Row-Level Security)**.
 
-Student — view assignments, weekly planner, and progress.
+---
 
-Parent — see student’s progress, deadlines, and mentor notes.
+## Roles
+- **Student** — view assignments, weekly planner, progress.  
+- **Parent** — see student progress, deadlines, mentor notes.  
+- **Mentor** — manage roster, add notes, track student progress.
 
-Mentor — manage roster, add notes, and view student progress.
+---
 
-Hosted on Vercel.
+## Architecture
+- **Front end:** Next.js (App Router) + React components.  
+- **Styling:** Tailwind CSS.  
+- **Backend services:** Supabase (PostgreSQL database + Auth + Row-Level Security).  
+- **Hosting:** Vercel (preview + production).
 
-Getting Started
-1. Clone this repository
-git clone https://github.com/YOUR_USERNAME/vectorius-prototype-next.git
-cd vectorius-prototype-next
+---
 
-2. Install dependencies
-npm install
+## External Links
+- **Production / Preview:** [vectorius-prototype-next.vercel.app](https://vectorius-prototype-next.vercel.app)  
+- **Supabase Project:** [supabase](https://supabase.com/dashboard/project/jpudkwktnpmsssrtsyki)
+- **Schema Diagram:** _(add dbdiagram.io or other link)_  
+- **Docs / Boards:**
+   - [google drive](https://drive.google.com/drive/folders/12vx4f6zABABGmfRcxfRFzpR9N6wtLg3X?usp=drive_link)
+   - [Trello](https://trello.com/invite/b/68a0a4dbb2d4b18ec8573648/ATTI8e99413098428cc9936092e453bdef05EEFC62E3/vectorius-90-day-plan)
+- **Design:** _(Figma link if any)_
 
-3. Run locally
-npm run dev
+---
 
+## Code Map
+```
+/app
+  layout.(ts|js)      # App shell
+  page.(ts|js)        # Landing/dashboard
+/components           # Reusable UI
+/lib
+  supabaseClient.ts   # Supabase client init (added in Lesson 4)
+/public               # Static assets
+tailwind.config.js    # Tailwind setup
+postcss.config.mjs    # PostCSS pipeline
+```
 
-Visit http://localhost:3000 in your browser.
+---
 
-Branching Workflow
+## Getting Started (Local)
+**Requirements:** Node.js 18+ and npm or pnpm.
 
-We use branches to safely develop features:
+1. Install:
+   ```bash
+   npm install
+   ```
 
-Create a new branch:
+2. Create `.env.local`:
+   ```bash
+   NEXT_PUBLIC_SUPABASE_URL=your_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+   ```
 
-git checkout -b feature-name
+3. Run:
+   ```bash
+   npm run dev
+   # visit http://localhost:3000
+   ```
 
+---
 
-Make changes and commit:
+## Database Setup (Supabase)
+Tables to create:
+- `profiles` (user info + role)  
+- `mentors` / `students`  
+- `mentor_students` (link table)  
+- `assignments`  
+- `comments`
 
-git add .
-git commit -m "Describe your change"
+Row-Level Security (RLS) policies:  
+- Users access their own profile.  
+- Mentors manage linked students, assignments, comments.  
+- Students see only their own assignments and comments.  
 
+Full SQL + policies are in `/supabase/migrations/`.
 
-Push to GitHub:
+---
 
-git push origin feature-name
+## Branching & Pull Requests
+Create feature branches (e.g., `feat/supabase-integration`).  
+Open a Draft Pull Request early.  
+Checklist:  
+- README updated  
+- Env vars documented  
+- SQL migrations present  
+- New features tested  
+- Lint/type checks pass
 
+---
 
-Open a Pull Request on GitHub and merge when ready.
+## Glossary
+- **RLS (Row-Level Security):** database feature limiting row visibility per user.  
+- **PR (Pull Request):** proposed code changes merged into main branch.  
+- **CI/CD (Continuous Integration / Continuous Delivery):** automated build/test/deploy pipeline.
 
-Tech Stack
+---
 
-Next.js — React framework for routing and builds.
-
-React — component-based UI.
-
-Tailwind CSS — utility-first styling.
-
-Vercel — hosting and deployment.
-
-Project Structure
-vectorius-prototype-next/
-├── app/                # Pages and layouts
-│   ├── layout.js       # Global layout wrapper
-│   ├── page.js         # Main dashboard logic
-│   └── globals.css     # Global styles & Tailwind setup
-├── components/         # Reusable UI parts (ProgressBar, Pill, etc.)
-├── public/             # Static assets (images, icons)
-├── package.json        # Project manifest (dependencies, scripts)
-├── tailwind.config.js  # Tailwind configuration
-├── postcss.config.mjs  # PostCSS + Tailwind integration
-└── README.md           # This file
-
-Deployment
-
-We use Vercel for continuous deployment:
-
-Main branch → Production.
-
-Feature branches → Preview URLs.
-
-Future Plans
-
-Replace mock data with live database (Supabase).
-
-Role-based authentication.
-
-Improved mobile experience.
+## Common Gotchas
+- After magic-link login, ensure redirect URL matches your deployed domain.  
+- Protect server actions that write to the database.  
+- Never expose `SERVICE_ROLE_KEY` in the browser.

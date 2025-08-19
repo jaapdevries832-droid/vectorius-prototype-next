@@ -1,6 +1,0 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* optional, just for a nicer background */
-html, body { background: #f9fafb; }

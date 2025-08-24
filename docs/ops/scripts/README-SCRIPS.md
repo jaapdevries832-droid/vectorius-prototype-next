@@ -1,90 +1,79 @@
-# Git Branch Management Scripts
+# Git workflow automation scripts
 
-This repo provides helper scripts to simplify working with Git branches.  
-They automate common workflows so you can keep local and remote branches in sync, push changes safely, or finish and merge feature branches cleanly.
+This folder contains Bash scripts designed to standardize and simplify your day‑to‑day Git operations.  They were written to avoid repetitive, error‑prone commands and to keep your local and remote branches in sync.  All scripts assume that:
 
----
+* You have `git` installed and available in your `PATH`.
+* You run the scripts from the root of the repository.
+* Your remote is named `origin` and you have permission to push to it.
 
-## Scripts
+> **Tip:** don’t forget to make the scripts executable.  If you cloned the repo on a new machine run `chmod +x ops/scripts/*.sh`.
 
-### 1. `ops/scripts/push-branch.sh`
+## `sync‑branch.sh`
 
-Use when you want your **local branch to become the source of truth**.  
-This is a **local-wins** strategy: your local commits are pushed up to the remote.
+Creates a local branch that mirrors an existing remote branch.  Use this at the beginning of each feature to ensure you start from a clean, exact copy of the remote branch.
 
-**What it does:**
-- Verifies you are in a Git repo.  
-- Switches to the target branch.  
-- Stages all local changes.  
-- Commits them (defaults to a date-based commit message if none is provided).  
-  - Format: `YYYY-MM-DD-vectorius-commit`  
-  - Example: `2025-08-22-vectorius-commit`  
-- Pushes the local branch to the remote so both are identical.  
-- Leaves the branch alive for continued work.  
+### What it does
 
-**Usage:**
-```bash 
+1. Fetches the named branch from the remote repository (`git fetch origin <branch>`).
+2. Checks out the branch locally, creating it if necessary (`git switch -C <branch>`).
+3. Hard resets the local branch to match the remote (`git reset --hard origin/<branch>`), discarding any uncommitted changes.
 
-# Push branch "Lesson-8" with default date-based commit message
-ops/scripts/push-branch.sh Lesson-8
+### Usage
 
-# Push branch "Lesson-8" with a custom commit message
-ops/scripts/push-branch.sh Lesson-8 "Added new roster + AI mock"
-
-# Push branch "Lesson-8" to a different remote
-ops/scripts/push-branch.sh Lesson-8 "" upstream
-
-```
-
-### 2. `ops/scripts/finish-branch.sh`
-
-Use when you are **done with a feature branch** and want to merge it into `main`.  
-This is a **complete lifecycle strategy**: commit → push → merge → cleanup.
-
-**What it does:**
-- Verifies you are in a Git repo.  
-- Switches to the feature branch.  
-- Stages and commits changes (defaults to a date-based commit message if none is provided).  
-  - Format: `YYYY-MM-DD-vectorius-commit`  
-- Pushes the feature branch to the remote.  
-- Switches to `main` (or `master` if overridden).  
-- Updates local `main` from the remote.  
-- Merges the feature branch into `main` using `--no-ff`.  
-- Pushes updated `main` to the remote.  
-- Deletes the feature branch both locally and remotely.  
-
-**Usage:**
 ```bash
-# Finish branch "lesson-9" with default date-based commit message
-ops/scripts/finish-branch.sh lesson-9
-
-# Finish branch "lesson-9" with a custom message
-ops/scripts/finish-branch.sh lesson-9 "Added roster selector + AI mock"
-
-# Finish branch "lesson-9" using a different remote
-ops/scripts/finish-branch.sh lesson-9 "" upstream
+./ops/scripts/sync-branch.sh <branch-name>
 ```
 
-### 3. `ops/scripts/create-mirror-branch.sh`
+For example, to start working on `Lesson-9`:
 
-Use when you want to **create a local branch from a remote branch, mirror it exactly, and switch to it**.  
-This is useful for starting work on an existing feature branch that only exists remotely.
-
-**What it does:**
-- Verifies you are in a Git repo.  
-- Fetches the branch from the remote.  
-- Verifies that the remote branch exists.  
-- Creates a local branch with the same name, tracking the remote.  
-- Hard-resets the local branch so it exactly mirrors the remote.  
-- Switches you to that branch.  
-
-**Usage:**
 ```bash
-# Create and mirror branch "Lesson-9" from origin
-ops/scripts/create-mirror-branch.sh Lesson-9
-
-# Create and mirror branch "Lesson-9" from another remote
-ops/scripts/create-mirror-branch.sh Lesson-9 upstream
+./ops/scripts/sync-branch.sh Lesson-9
 ```
 
-MAIN_BRANCH=master ops/scripts/finish-branch.sh lesson-
+### Troubleshooting
+
+* **“fatal: couldn’t find remote ref”** – the branch name is wrong or hasn’t been pushed yet.  Push it first or choose an existing branch.
+* **Uncommitted changes are lost** – the script performs a hard reset.  Make sure you have no local changes in the branch before running it.
+* **Different remote name** – if your remote isn’t called `origin`, edit the script or set `REMOTE_NAME` at the top to your remote’s name.
+
+## `finish‑branch.sh`
+
+Finalizes your work and merges your feature branch back into `main`.  It stages everything, commits with a default or custom message, pushes your branch, merges it with a non‑fast‑forward merge and removes the branch locally and remotely.
+
+### What it does
+
+1. Checks out your feature branch (`git switch <branch>`).
+2. Adds all changes (`git add -A`).
+3. Commits with a provided message or falls back to `data-vectorius-commit` if none is supplied (`git commit -m "$message"`).
+4. Pushes the branch to the remote (`git push -u origin <branch>`).
+5. Switches to `main` and pulls the latest (`git switch main && git pull`).
+6. Merges the feature branch into `main` with a no fast forward merge (`git merge --no-ff <branch>`).
+7. Pushes the updated `main` (`git push`).
+8. Deletes the feature branch locally (`git branch -d <branch>`) and remotely (`git push origin --delete <branch>`).
+
+### Usage
+
+```bash
+./ops/scripts/finish-branch.sh <branch-name> "<commit message>"
+```
+
+* The `commit message` is optional.  If omitted the default `data-vectorius-commit` is used.
+* Always wrap your commit message in quotes if it contains spaces.
+
+Example:
+
+```bash
+./ops/scripts/finish-branch.sh Lesson-9 "feat: add dashboards and cleanup"
+```
+
+### Troubleshooting
+
+* **Branch does not exist** – make sure you have a local branch checked out and that you spelled it correctly.
+* **Merge conflicts** – resolve any conflicts manually, run the script again from the “stage & commit” step, or complete the merge yourself if necessary.
+* **Remote deletion fails** – ensure you have permission to delete branches on the remote.  You can manually delete the branch in your Git hosting UI as a fallback.
+
+## Additional notes
+
+* The scripts assume a simple Git model with a single long‑lived `main` branch and short‑lived feature branches.  Adjust the scripts if your workflow differs.
+* Always pull the latest `main` and run your test suite before finishing a branch to avoid breaking the build.
+* If you modify these scripts, update this README to reflect the new behaviour so that future contributors know what to expect.

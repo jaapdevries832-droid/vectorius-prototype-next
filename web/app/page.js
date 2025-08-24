@@ -149,6 +149,36 @@ async function insertMentorNote({ studentId, advisorId, body }) {
   if (error) throw error;
 }
 
+// Additional helpers to support selecting specific students and advisors.
+// These functions fetch full lists of students and advisors (teachers) from Supabase.
+async function fetchAllStudents() {
+  const { data, error } = await supabase
+    .from('students')
+    .select('id, first_name, last_name')
+    .order('last_name', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+async function fetchAllAdvisors() {
+  const { data, error } = await supabase
+    .from('advisors')
+    .select('id, first_name, last_name')
+    .order('last_name', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+// Fetch all parents from Supabase for parent impersonation. Returns id and names for display.
+async function fetchAllParents() {
+  const { data, error } = await supabase
+    .from('parents')
+    .select('id, first_name, last_name')
+    .order('last_name', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
 /* --------------- Main ---------------- */
 
 export default function HomePage() {
@@ -177,6 +207,17 @@ export default function HomePage() {
   const [noteDraft, setNoteDraft] = useState('');
   const [noteStatus, setNoteStatus] = useState(null);
 
+  // Lists of entities for drop‑down selectors
+  const [studentList, setStudentList] = useState([]);
+  // Selected student id when in Student role
+  const [studentRoleStudentId, setStudentRoleStudentId] = useState(null);
+  // List of advisors/teachers available
+  const [advisorList, setAdvisorList] = useState([]);
+
+  // List of parents and selected parent (for the Parent role)
+  const [parentList, setParentList] = useState([]);
+  const [selectedParentId, setSelectedParentId] = useState(null);
+
   // Load data when role changes
   useEffect(() => {
     let mounted = true;
@@ -186,88 +227,126 @@ export default function HomePage() {
         setLiveError(null);
 
         if (role === 'Student') {
-          const sids = await resolveStudentIdsForRole('Student');
+          // Load all students for selection
+          const students = await fetchAllStudents();
           if (!mounted) return;
-          setStudentIds(sids);
-          const [plan, all] = await Promise.all([
-            listAssignmentsDueInDays(sids, 14),
-            listAssignmentsByStudentIds(sids, 200),
-          ]);
-          if (!mounted) return;
-          setLivePlan(plan);
-          setLiveAssignments(all);
+          setStudentList(students);
+          const firstStudentId = students[0]?.id ?? null;
+          setStudentRoleStudentId(firstStudentId);
+          if (firstStudentId) {
+            const [plan, all] = await Promise.all([
+              listAssignmentsDueInDays([firstStudentId], 14),
+              listAssignmentsByStudentIds([firstStudentId], 200),
+            ]);
+            if (!mounted) return;
+            setStudentIds([firstStudentId]);
+            setLivePlan(plan);
+            setLiveAssignments(all);
+          } else {
+            setStudentIds([]);
+            setLivePlan([]);
+            setLiveAssignments([]);
+          }
 
           // clear other role state
           setParentId(null); setParentChildren([]); setSelectedChildId(null); setSelectedChildNotes([]);
-          setAdvisorId(null); setRoster([]); setSelectedStudentId(null); setSelectedStudentNotes([]); setNoteDraft('');
+          setAdvisorList([]); setAdvisorId(null); setRoster([]); setSelectedStudentId(null); setSelectedStudentNotes([]); setNoteDraft('');
         }
 
         if (role === 'Parent') {
-          // find any parent id, then load their children for the selector
-          const pid = await getAnyParentId();
+          // load all parents and default to the first one
+          const parents = await fetchAllParents();
           if (!mounted) return;
-          setParentId(pid);
-          const childIds = await getStudentIdsForParent(pid);
-          if (!mounted) return;
-
-          let children = [];
-          if (childIds.length) {
-            const { data, error } = await supabase
-              .from('students')
-              .select('id, first_name, last_name')
-              .in('id', childIds)
-              .order('last_name', { ascending: true });
-            if (error) throw error;
-            children = data ?? [];
-          }
-          setParentChildren(children);
-
-          // default to first child
-          const firstChild = children[0]?.id ?? null;
-          setSelectedChildId(firstChild);
-
-          if (firstChild) {
-            const [plan, all, notes] = await Promise.all([
-              listAssignmentsDueInDays([firstChild], 10),
-              listAssignmentsByStudentIds([firstChild], 200),
-              fetchRecentNotesForStudent(firstChild, 2),
-            ]);
+          setParentList(parents);
+          const firstParentId = parents[0]?.id ?? null;
+          setSelectedParentId(firstParentId);
+          setParentId(firstParentId);
+          if (firstParentId) {
+            const childIds = await getStudentIdsForParent(firstParentId);
             if (!mounted) return;
-            setStudentIds([firstChild]);
-            setLivePlan(plan);
-            setLiveAssignments(all);
-            setSelectedChildNotes(notes);
+            let children = [];
+            if (childIds.length) {
+              const { data, error } = await supabase
+                .from('students')
+                .select('id, first_name, last_name')
+                .in('id', childIds)
+                .order('last_name', { ascending: true });
+              if (error) throw error;
+              children = data ?? [];
+            }
+            setParentChildren(children);
+            const firstChild = children[0]?.id ?? null;
+            setSelectedChildId(firstChild);
+            if (firstChild) {
+              const [plan, all, notes] = await Promise.all([
+                listAssignmentsDueInDays([firstChild], 10),
+                listAssignmentsByStudentIds([firstChild], 200),
+                fetchRecentNotesForStudent(firstChild, 2),
+              ]);
+              if (!mounted) return;
+              setStudentIds([firstChild]);
+              setLivePlan(plan);
+              setLiveAssignments(all);
+              setSelectedChildNotes(notes);
+            } else {
+              setSelectedChildNotes([]);
+              setStudentIds([]);
+              setLivePlan([]);
+              setLiveAssignments([]);
+            }
           } else {
+            // no parents available
+            setParentChildren([]);
+            setSelectedChildId(null);
+            setSelectedChildNotes([]);
             setStudentIds([]);
-            setLivePlan([]); setLiveAssignments([]); setSelectedChildNotes([]);
+            setLivePlan([]);
+            setLiveAssignments([]);
           }
 
           // clear mentor state
-          setAdvisorId(null); setRoster([]); setSelectedStudentId(null); setSelectedStudentNotes([]); setNoteDraft('');
+          setAdvisorId(null); setAdvisorList([]); setRoster([]); setSelectedStudentId(null); setSelectedStudentNotes([]); setNoteDraft('');
         }
 
         if (role === 'Mentor') {
-          const aid = await getAnyAdvisorId();
+          // Load all advisors for selection
+          const advisors = await fetchAllAdvisors();
           if (!mounted) return;
-          setAdvisorId(aid);
-          const r = await fetchMentorRoster(aid);
-          if (!mounted) return;
-          setRoster(r);
-          const firstId = r[0]?.id ?? null;
-          setSelectedStudentId(firstId);
-          if (firstId) {
-            const [plan, all, notes] = await Promise.all([
-              listAssignmentsDueInDays([firstId], 14),
-              listAssignmentsByStudentIds([firstId], 200),
-              fetchRecentNotesForStudent(firstId, 2),
-            ]);
+          setAdvisorList(advisors);
+          const firstAdvisorId = advisors[0]?.id ?? null;
+          setAdvisorId(firstAdvisorId);
+          if (firstAdvisorId) {
+            const rosterList = await fetchMentorRoster(firstAdvisorId);
             if (!mounted) return;
-            setStudentIds([firstId]);
-            setLivePlan(plan);
-            setLiveAssignments(all);
-            setSelectedStudentNotes(notes);
+            setRoster(rosterList);
+            const firstStudent = rosterList[0]?.id ?? null;
+            setSelectedStudentId(firstStudent);
+            if (firstStudent) {
+              const [plan, all, notes] = await Promise.all([
+                listAssignmentsDueInDays([firstStudent], 14),
+                listAssignmentsByStudentIds([firstStudent], 200),
+                fetchRecentNotesForStudent(firstStudent, 2),
+              ]);
+              if (!mounted) return;
+              setStudentIds([firstStudent]);
+              setLivePlan(plan);
+              setLiveAssignments(all);
+              setSelectedStudentNotes(notes);
+            } else {
+              setStudentIds([]);
+              setLivePlan([]);
+              setLiveAssignments([]);
+              setSelectedStudentNotes([]);
+            }
           } else {
-            setLivePlan([]); setLiveAssignments([]); setSelectedStudentNotes([]);
+            // No advisors found
+            setAdvisorId(null);
+            setRoster([]);
+            setSelectedStudentId(null);
+            setStudentIds([]);
+            setLivePlan([]);
+            setLiveAssignments([]);
+            setSelectedStudentNotes([]);
           }
 
           // clear parent state
@@ -339,6 +418,120 @@ export default function HomePage() {
     return () => { mounted = false; };
   }, [role, selectedStudentId]);
 
+  // Student: switching selected student (student role)
+  useEffect(() => {
+    let mounted = true;
+    if (role !== 'Student' || !studentRoleStudentId) return;
+    (async () => {
+      try {
+        setLoading(true);
+        const [plan, all] = await Promise.all([
+          listAssignmentsDueInDays([studentRoleStudentId], 14),
+          listAssignmentsByStudentIds([studentRoleStudentId], 200),
+        ]);
+        if (!mounted) return;
+        setStudentIds([studentRoleStudentId]);
+        setLivePlan(plan);
+        setLiveAssignments(all);
+      } catch (e) {
+        if (!mounted) return;
+        setLiveError(e?.message ?? 'fetch failed');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [role, studentRoleStudentId]);
+
+  // Mentor: switching selected advisor/teacher
+  useEffect(() => {
+    let mounted = true;
+    if (role !== 'Mentor' || !advisorId) return;
+    (async () => {
+      try {
+        setLoading(true);
+        const rosterList = await fetchMentorRoster(advisorId);
+        if (!mounted) return;
+        setRoster(rosterList);
+        const firstStudent = rosterList[0]?.id ?? null;
+        setSelectedStudentId(firstStudent);
+        if (firstStudent) {
+          const [plan, all, notes] = await Promise.all([
+            listAssignmentsDueInDays([firstStudent], 14),
+            listAssignmentsByStudentIds([firstStudent], 200),
+            fetchRecentNotesForStudent(firstStudent, 2),
+          ]);
+          if (!mounted) return;
+          setStudentIds([firstStudent]);
+          setLivePlan(plan);
+          setLiveAssignments(all);
+          setSelectedStudentNotes(notes);
+        } else {
+          setStudentIds([]);
+          setLivePlan([]);
+          setLiveAssignments([]);
+          setSelectedStudentNotes([]);
+        }
+      } catch (e) {
+        if (!mounted) return;
+        setLiveError(e?.message ?? 'fetch failed');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [role, advisorId]);
+
+  // Parent: switching selected parent
+  useEffect(() => {
+    let mounted = true;
+    if (role !== 'Parent' || !selectedParentId) return;
+    (async () => {
+      try {
+        setLoading(true);
+        // Load children for the newly selected parent
+        const childIds = await getStudentIdsForParent(selectedParentId);
+        if (!mounted) return;
+        let children = [];
+        if (childIds.length) {
+          const { data, error } = await supabase
+            .from('students')
+            .select('id, first_name, last_name')
+            .in('id', childIds)
+            .order('last_name', { ascending: true });
+          if (error) throw error;
+          children = data ?? [];
+        }
+        setParentChildren(children);
+        const firstChild = children[0]?.id ?? null;
+        setSelectedChildId(firstChild);
+        if (firstChild) {
+          const [plan, all, notes] = await Promise.all([
+            listAssignmentsDueInDays([firstChild], 10),
+            listAssignmentsByStudentIds([firstChild], 200),
+            fetchRecentNotesForStudent(firstChild, 2),
+          ]);
+          if (!mounted) return;
+          setStudentIds([firstChild]);
+          setLivePlan(plan);
+          setLiveAssignments(all);
+          setSelectedChildNotes(notes);
+        } else {
+          setSelectedChildNotes([]);
+          setStudentIds([]);
+          setLivePlan([]);
+          setLiveAssignments([]);
+        }
+      } catch (e) {
+        if (!mounted) return;
+        setLiveError(e?.message ?? 'fetch failed');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [role, selectedParentId]);
+
   const envBanner = liveAssignments
     ? <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">Live data</span>
     : <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100">Demo data</span>;
@@ -350,6 +543,27 @@ export default function HomePage() {
 
   const StudentLikeHome = () => (
     <>
+      {/* Student selector to choose a specific student when impersonating the Student role */}
+      <Card title="Student Selector">
+        {studentList.length ? (
+          <div className="flex items-center gap-3">
+            <select
+              className="text-sm border rounded px-2 py-1"
+              value={studentRoleStudentId ?? ''}
+              onChange={(e) => setStudentRoleStudentId(e.target.value)}
+            >
+              {studentList.map(s => (
+                <option key={s.id} value={s.id}>{s.first_name} {s.last_name}</option>
+              ))}
+            </select>
+            <span className="text-sm text-gray-600">
+              Viewing data for {studentRoleStudentId ? `${studentList.find(s => s.id === studentRoleStudentId)?.first_name ?? ''} ${studentList.find(s => s.id === studentRoleStudentId)?.last_name ?? ''}` : '—'}
+            </span>
+          </div>
+        ) : (
+          <div className="text-sm text-gray-500">No students.</div>
+        )}
+      </Card>
       <Card
         title="This Week’s Plan"
         right={<Pill intent={liveAssignments ? 'success' : 'info'}>{liveAssignments ? 'Live' : 'Demo'}</Pill>}
@@ -438,6 +652,27 @@ export default function HomePage() {
 
     return (
       <>
+        {/* Selector for choosing which parent to impersonate */}
+        <Card title="Parent Selector" right={null}>
+          {parentList.length ? (
+            <div className="flex items-center gap-3">
+              <select
+                className="text-sm border rounded px-2 py-1"
+                value={selectedParentId ?? ''}
+                onChange={(e) => setSelectedParentId(e.target.value)}
+              >
+                {parentList.map(p => (
+                  <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>
+                ))}
+              </select>
+              <span className="text-sm text-gray-600">
+                Viewing data for {selectedParentId ? `${parentList.find(p => p.id === selectedParentId)?.first_name ?? ''} ${parentList.find(p => p.id === selectedParentId)?.last_name ?? ''}` : '—'}
+              </span>
+            </div>
+          ) : (
+            <div className="text-sm text-gray-500">No parents.</div>
+          )}
+        </Card>
         <Card
           title="Student Selector"
           right={null}
@@ -528,6 +763,27 @@ export default function HomePage() {
 
     return (
       <>
+        {/* Advisor selector to choose a specific mentor/teacher */}
+        <Card title="Advisor Selector" right={null}>
+          {advisorList.length ? (
+            <div className="flex items-center gap-3">
+              <select
+                className="text-sm border rounded px-2 py-1"
+                value={advisorId ?? ''}
+                onChange={(e) => setAdvisorId(e.target.value)}
+              >
+                {advisorList.map(a => (
+                  <option key={a.id} value={a.id}>{a.first_name} {a.last_name}</option>
+                ))}
+              </select>
+              <span className="text-sm text-gray-600">
+                Viewing data for {advisorId ? `${advisorList.find(a => a.id === advisorId)?.first_name ?? ''} ${advisorList.find(a => a.id === advisorId)?.last_name ?? ''}` : '—'}
+              </span>
+            </div>
+          ) : (
+            <div className="text-sm text-gray-500">No advisors.</div>
+          )}
+        </Card>
         <Card title="Student Roster" right={<span className="text-xs text-gray-500">{roster.length} total</span>}>
           <input
             className="w-full text-sm border rounded px-3 py-2 mb-3"

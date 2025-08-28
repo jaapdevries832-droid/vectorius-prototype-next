@@ -1,9 +1,5 @@
 // web/app/api/chat/route.ts
-export async function POST(req: Request) {
-  console.log(">>> /api/chat route hit");
-  try {
-    const { question, history = [] } = await req.json();
-    console.log("Question received:", question);
+
 
 
 

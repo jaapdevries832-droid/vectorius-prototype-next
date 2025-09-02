@@ -1,16 +1,18 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, KeyboardEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import ModeSelector from "../../components/ModeSelector";
 
+type HistoryMessage = { role: "user" | "assistant"; content: string };
+
 export default function DebugAzureAPIPage() {
-  const [mode, setMode] = useState("tutor"); // "tutor" | "checker" | "explainer"
+  const [mode, setMode] = useState("tutor");
   const [input, setInput] = useState("");
   const [reply, setReply] = useState("");
   const [loading, setLoading] = useState(false);
-  const [history, setHistory] = useState([]); // [{role, content}]
-  const inputRef = useRef(null);
+  const [history, setHistory] = useState<HistoryMessage[]>([]);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   async function sendMessage() {
     const question = input.trim();
@@ -19,18 +21,13 @@ export default function DebugAzureAPIPage() {
     setLoading(true);
     setReply("");
 
-    // Build minimal history; keep it small to avoid long contexts
     const trimmedHistory = history.slice(-8);
 
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question,
-          mode,
-          history: trimmedHistory,
-        }),
+        body: JSON.stringify({ question, mode, history: trimmedHistory }),
       });
 
       const data = await res.json();
@@ -38,14 +35,13 @@ export default function DebugAzureAPIPage() {
         setReply(data?.error ? `❌ ${data.error}` : "❌ Request failed");
       } else {
         setReply(data.reply || "");
-        // append last turn to history (user + assistant)
         setHistory([
           ...trimmedHistory,
           { role: "user", content: question },
           { role: "assistant", content: data.reply || "" },
         ]);
       }
-    } catch (e) {
+    } catch (e: any) {
       setReply(`❌ ${e.message || String(e)}`);
     } finally {
       setLoading(false);
@@ -54,7 +50,7 @@ export default function DebugAzureAPIPage() {
     }
   }
 
-  function handleKeyDown(e) {
+  function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -75,12 +71,10 @@ export default function DebugAzureAPIPage() {
         Uses <code>/api/chat</code> with Markdown prompts from <code>/prompts</code>. Switch modes and send quick tests.
       </p>
 
-      <ModeSelector mode={mode} onChange={setMode} />
+      <ModeSelector mode={mode as any} onChange={(m) => setMode(m)} />
 
       <div className="border rounded p-3 mb-3 bg-white">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Your message
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Your message</label>
         <textarea
           ref={inputRef}
           value={input}
@@ -110,10 +104,7 @@ export default function DebugAzureAPIPage() {
           >
             {loading ? "Sending..." : "Send"}
           </button>
-          <button
-            onClick={clearThread}
-            className="px-4 py-2 rounded border bg-white hover:bg-gray-50"
-          >
+          <button onClick={clearThread} className="px-4 py-2 rounded border bg-white hover:bg-gray-50">
             Clear
           </button>
         </div>
@@ -121,50 +112,37 @@ export default function DebugAzureAPIPage() {
 
       <div className="border rounded p-3 bg-gray-50 prose max-w-none">
         <div className="text-sm text-gray-700 mb-1 font-semibold">Assistant reply</div>
-            {reply ? (
-                 <ReactMarkdown>{reply}</ReactMarkdown>
-         ) : (
-            <span className="text-gray-400">No reply yet.</span>
-        )}
-        </div>
-
-      {/* <div className="border rounded p-3 bg-gray-50 whitespace-pre-wrap">
-        <div className="text-sm text-gray-700 mb-1 font-semibold">Assistant reply</div>
-        {reply ? reply : <span className="text-gray-400">No reply yet.</span>}
-      </div> */}
+        {reply ? <ReactMarkdown>{reply}</ReactMarkdown> : <span className="text-gray-400">No reply yet.</span>}
+      </div>
 
       <div className="border rounded p-3 mt-3 bg-white">
         <div className="text-sm text-gray-700 mb-2 font-semibold">Conversation (last 10 turns)</div>
         {history.length === 0 ? (
           <div className="text-gray-400 text-sm">Empty</div>
         ) : (
-            <ul className="space-y-2 text-sm">
+          <ul className="space-y-2 text-sm">
             {history.slice(-10).map((m, idx) => (
-                <li key={idx} className="flex gap-2">
+              <li key={idx} className="flex gap-2">
                 <span
-                    className={
+                  className={
                     "inline-block min-w-[84px] text-xs font-semibold px-2 py-0.5 rounded " +
                     (m.role === "user"
-                        ? "bg-gray-200 text-gray-800"
-                        : "bg-green-100 text-green-800")
-                    }
+                      ? "bg-gray-200 text-gray-800"
+                      : "bg-green-100 text-green-800")
+                  }
                 >
-                    {m.role}
+                  {m.role}
                 </span>
-
-                {/* markdown-rendered message */}
                 <div className="flex-1 prose max-w-none">
-                    <ReactMarkdown>{m.content}</ReactMarkdown>
+                  <ReactMarkdown>{m.content}</ReactMarkdown>
                 </div>
-                </li>
+              </li>
             ))}
-            </ul>
+          </ul>
         )}
       </div>
 
-      <div className="text-xs text-gray-500 mt-4">
-        Mode: <code>{mode}</code>
-      </div>
+      <div className="text-xs text-gray-500 mt-4">Mode: <code>{mode}</code></div>
     </div>
   );
 }

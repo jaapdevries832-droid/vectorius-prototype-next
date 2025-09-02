@@ -1,14 +1,19 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import {
+  fetchAssignments,
+  createAssignment,
+  toggleAssignmentStatus,
+  removeAssignment,
+} from "../../lib/api";
 
 type Assignment = {
   id: string;
-  student_id: string | null;
+  studentId: string | null;
   title: string;
-  due_date: string | null;
+  dueAt: string | null;
   status: "todo" | "in_progress" | "done";
-  created_at: string;
+  createdAt: string;
 };
 
 type Filter = "all" | "todo" | "in_progress" | "done";
@@ -45,58 +50,64 @@ export default function AssignmentsPage() {
   // form state
   const [title, setTitle] = useState("");
   const [studentId, setStudentId] = useState("alex");
-  const [dueDate, setDueDate] = useState("");
+  const [dueAt, setDueAt] = useState("");
   const [status, setStatus] = useState<Assignment["status"]>("todo");
 
   // UI filters
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
 
-  async function fetchAssignments() {
+  async function loadAssignments() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("assignments")
-      .select("*")
-      .order("due_date", { ascending: true, nullsFirst: true })
-      .order("created_at", { ascending: false });
-
-    if (error) setError(error.message);
-    setItems((data as Assignment[]) || []);
+    try {
+      const data = await fetchAssignments();
+      setItems(data);
+    } catch (e: any) {
+      setError(e.message);
+    }
     setLoading(false);
   }
 
   useEffect(() => {
-    fetchAssignments();
+    loadAssignments();
   }, []);
 
   async function addAssignment(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const { error } = await supabase.from("assignments").insert({
-      student_id: studentId || null,
-      title,
-      due_date: dueDate || null,
-      status,
-    });
-    if (error) {
-      setError(error.message);
-      return;
+    try {
+      await createAssignment({
+        studentId: studentId || null,
+        title,
+        dueAt: dueAt || null,
+        status,
+      });
+      setTitle("");
+      setDueAt("");
+      setStatus("todo");
+      loadAssignments();
+    } catch (e: any) {
+      setError(e.message);
     }
-    setTitle("");
-    setDueDate("");
-    setStatus("todo");
-    fetchAssignments();
   }
 
   async function toggleStatus(id: string, current: Assignment["status"]) {
     const next = current === "done" ? "todo" : "done";
-    const { error } = await supabase.from("assignments").update({ status: next }).eq("id", id);
-    if (!error) fetchAssignments();
+    try {
+      await toggleAssignmentStatus(id, current);
+      loadAssignments();
+    } catch (e: any) {
+      setError(e.message);
+    }
   }
 
   async function remove(id: string) {
-    const { error } = await supabase.from("assignments").delete().eq("id", id);
-    if (!error) fetchAssignments();
+    try {
+      await removeAssignment(id);
+      loadAssignments();
+    } catch (e: any) {
+      setError(e.message);
+    }
   }
 
   const filtered = useMemo(() => {
@@ -107,12 +118,12 @@ export default function AssignmentsPage() {
         (a) =>
           !q ||
           a.title.toLowerCase().includes(q) ||
-          (a.student_id || "").toLowerCase().includes(q)
+          (a.studentId || "").toLowerCase().includes(q)
       )
       // sort: overdue first, then due date asc, then created_at desc
       .sort((a, b) => {
-        const da = daysUntil(a.due_date);
-        const db = daysUntil(b.due_date);
+        const da = daysUntil(a.dueAt);
+        const db = daysUntil(b.dueAt);
         const oa = da !== null && da < 0 ? 1 : 0;
         const ob = db !== null && db < 0 ? 1 : 0;
         if (oa !== ob) return ob - oa; // overdue first
@@ -185,8 +196,8 @@ export default function AssignmentsPage() {
           <input
             type="date"
             className="w-full rounded-lg border px-3 py-2"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
+            value={dueAt}
+            onChange={(e) => setDueAt(e.target.value)}
           />
         </div>
         <div>
@@ -219,7 +230,7 @@ export default function AssignmentsPage() {
           </div>
         ) : (
           filtered.map((a) => {
-            const d = daysUntil(a.due_date);
+            const d = daysUntil(a.dueAt);
             const overdue = d !== null && d < 0;
             const dueSoon = d !== null && d >= 0 && d <= 3; // highlight 3‑day window
             return (
@@ -245,8 +256,8 @@ export default function AssignmentsPage() {
                     )}
                   </div>
                   <p className="text-sm text-gray-600">
-                    {(a.student_id ?? "—").toLowerCase()} •{" "}
-                    {a.due_date ? new Date(a.due_date).toISOString().slice(0, 10) : "No due date"}
+                    {(a.studentId ?? "—").toLowerCase()} •{" "}
+                    {a.dueAt ? new Date(a.dueAt).toISOString().slice(0, 10) : "No due date"}
                   </p>
                 </div>
 

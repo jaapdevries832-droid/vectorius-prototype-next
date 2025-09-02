@@ -2,6 +2,14 @@
 
 Vectorius is an education‑oriented platform that brings students, parents and mentors together.  This prototype combines a **Next.js** frontend with a **Supabase** backend to deliver role‑aware dashboards, a normalized database schema and repeatable operational tooling.  It grew out of a series of lessons aimed at turning a messy single‑folder app into a clean, maintainable mono‑repo.  The goal is to provide a strong foundation for building and iterating on a real product while documenting the journey along the way.
 
+## Recent updates
+
+* Converted all remaining JavaScript/JSX to TypeScript for consistent typing.
+* Split large pages into reusable components under `web/components` and centralized Supabase calls in `web/lib/api.ts`.
+* Standardized naming to use `due_at` in the database and `dueAt` in the codebase.
+* Added Prettier, ESLint, Jest and React Testing Library with Husky pre‑commit hooks.
+* Introduced a `.env.example` template to manage secrets and avoid committing real keys.
+
 ## Features
 
 * **Role‑aware dashboards** – Students see their upcoming homework and progress; parents can switch between children and view notes and deadlines; mentors manage their roster and author notes.  All pages consume live data from Supabase.

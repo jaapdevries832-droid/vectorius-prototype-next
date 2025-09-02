@@ -2,9 +2,16 @@
 
 import React from "react";
 
-const MODES = ["tutor", "checker", "explainer"];
+const MODES = ["tutor", "checker", "explainer"] as const;
 
-export default function ModeSelector({ mode, onChange }) {
+type Mode = (typeof MODES)[number];
+
+interface ModeSelectorProps {
+  mode: Mode;
+  onChange: (mode: Mode) => void;
+}
+
+export default function ModeSelector({ mode, onChange }: ModeSelectorProps) {
   return (
     <div className="flex gap-2 mb-3">
       {MODES.map((m) => {

@@ -2141,7 +2141,7 @@ CREATE TABLE public.assignments (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     student_id text,
     title text NOT NULL,
-    due_date date,
+    due_at date,
     status text DEFAULT 'todo'::text,
     created_at timestamp with time zone DEFAULT now(),
     CONSTRAINT assignments_status_check CHECK ((status = ANY (ARRAY['todo'::text, 'in_progress'::text, 'done'::text])))

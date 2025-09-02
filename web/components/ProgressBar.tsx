@@ -1,4 +1,11 @@
-export default function ProgressBar({ label, value }) {
+import React from "react";
+
+interface ProgressBarProps {
+  label?: string;
+  value: number | string;
+}
+
+export default function ProgressBar({ label, value }: ProgressBarProps) {
   const pct = Math.max(0, Math.min(100, Number(value) || 0));
 
   return (
@@ -10,10 +17,7 @@ export default function ProgressBar({ label, value }) {
         </div>
       )}
       <div className="h-2 w-full rounded-full bg-gray-200">
-        <div
-          className="h-full rounded-full bg-indigo-600"
-          style={{ width: `${pct}%` }}
-        />
+        <div className="h-full rounded-full bg-indigo-600" style={{ width: `${pct}%` }} />
       </div>
     </div>
   );

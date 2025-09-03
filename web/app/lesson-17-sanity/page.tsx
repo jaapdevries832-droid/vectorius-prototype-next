@@ -17,4 +17,3 @@ export default function Lesson17SanityPage() {
     </main>
   );
 }
-

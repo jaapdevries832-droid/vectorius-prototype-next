@@ -126,10 +126,12 @@ async function fetchAllStudents() {
   return data ?? [];
 }
 
+// UI label "Mentor" maps to DB table `advisors`.
+// Everything in the data layer uses advisors + student_advisor.
 async function fetchAllAdvisors() {
   const { data, error } = await supabase
     .from("advisors")
-    .select("id, first_name, last_name")
+    .select("id, first_name, last_name, email")
     .order("last_name", { ascending: true });
   if (error) throw error;
   return data ?? [];
@@ -554,9 +556,9 @@ export default function HomePage() {
     return (
       <>
         <div className="grid md:grid-cols-2 gap-6">
-          <Card title="Mentor">
+          <Card title="Mentor (Advisor)">
             <Dropdown
-              label="Select mentor"
+              label="Select mentor (advisor)"
               value={advisorId || ""}
               onChange={async (aid: any) => {
                 setAdvisorId(aid);
@@ -587,7 +589,11 @@ export default function HomePage() {
               }}
               options={advisorList}
               getKey={(o: any) => o.id}
-              getLabel={(o: any) => `${o.first_name} ${o.last_name}`}
+              getLabel={(o: any) =>
+                o.last_name || o.first_name
+                  ? `${o.last_name ?? ""}${o.last_name ? ", " : ""}${o.first_name ?? ""}`
+                  : (o.email ?? "")
+              }
               className=""
             />
           </Card>

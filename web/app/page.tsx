@@ -129,12 +129,27 @@ async function fetchAllStudents() {
 // UI label "Mentor" maps to DB table `advisors`.
 // Everything in the data layer uses advisors + student_advisor.
 async function fetchAllAdvisors() {
+  // Primary query: list all advisors with names/email
   const { data, error } = await supabase
     .from("advisors")
     .select("id, first_name, last_name, email")
     .order("last_name", { ascending: true });
-  if (error) throw error;
-  return data ?? [];
+  if (!error && data && data.length) return data;
+
+  // Fallback: discover advisor ids present via student_advisor (distinct)
+  const { data: rels, error: relErr } = await supabase
+    .from("student_advisor")
+    .select("advisor_id")
+    .limit(1000);
+  if (relErr || !rels?.length) return [] as any[];
+  const uniq = Array.from(new Set(rels.map((r: any) => r.advisor_id)));
+  // Try fetching minimal advisor rows (id only is fine for UI fallback)
+  const { data: minimal } = await supabase
+    .from("advisors")
+    .select("id, first_name, last_name, email")
+    .in("id", uniq);
+  if (minimal?.length) return minimal;
+  return uniq.map((id: string) => ({ id, first_name: null, last_name: null, email: null }));
 }
 
 async function fetchAllParents() {
@@ -589,11 +604,14 @@ export default function HomePage() {
               }}
               options={advisorList}
               getKey={(o: any) => o.id}
-              getLabel={(o: any) =>
-                o.last_name || o.first_name
-                  ? `${o.last_name ?? ""}${o.last_name ? ", " : ""}${o.first_name ?? ""}`
-                  : (o.email ?? "")
-              }
+              getLabel={(o: any) => {
+                const ln = (o?.last_name || "").trim();
+                const fn = (o?.first_name || "").trim();
+                if (ln || fn) return `${ln}${ln ? ", " : ""}${fn}`;
+                if (o?.email) return o.email;
+                const sid = String(o?.id || "").slice(0, 8);
+                return sid ? `Advisor ${sid}` : "Advisor";
+              }}
               className=""
             />
           </Card>

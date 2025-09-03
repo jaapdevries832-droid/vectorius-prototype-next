@@ -258,8 +258,18 @@ export default function HomePage() {
             }
           }
         } else {
-          // Mentor
-          const aid = await getAnyAdvisorId();
+          // Mentor: load advisors list and select default/saved advisor
+          const advisors = await fetchAllAdvisors();
+          if (!mounted) return;
+          setAdvisorList(advisors);
+          const savedAid =
+            typeof window !== "undefined"
+              ? window.localStorage.getItem("v17_advisor_selected")
+              : null;
+          const aid =
+            (savedAid && advisors.find((a: any) => a.id === savedAid)?.id) ||
+            advisors[0]?.id ||
+            (await getAnyAdvisorId());
           if (!mounted) return;
           setAdvisorId(aid);
           const roster = await fetchMentorRoster(aid);
@@ -278,6 +288,11 @@ export default function HomePage() {
             setStudentIds([s0]);
             setLivePlan(plan as any);
             setLiveAssignments(all as any);
+          } else {
+            setSelectedStudentNotes([]);
+            setStudentIds([]);
+            setLivePlan([]);
+            setLiveAssignments([]);
           }
         }
       } catch (e: any) {

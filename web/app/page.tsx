@@ -13,7 +13,7 @@ import Alert from "../components/Alert";
 import Dropdown from "../components/Dropdown";
 import WeeklyPlanMock from "../components/WeeklyPlanMock";
 import HomeworkProjectsMock from "../components/HomeworkProjectsMock";
-import ChatMock from "../components/ChatMock";
+import StudentChat from "../components/StudentChat.jsx";
 import {
   resolveStudentIdsForRole,
   listAssignmentsByStudentIds,
@@ -502,7 +502,17 @@ export default function HomePage() {
           <HomeworkProjectsMock items={[]} />
         </Card>
         <Card title="AI Chat (Mock)">
-          <ChatMock />
+          {(() => {
+            const s = studentList.find((o: any) => o.id === studentRoleStudentId);
+            const studentName = s ? `${s.first_name} ${s.last_name}` : "Student";
+            return (
+              <StudentChat
+                key={studentRoleStudentId || "none"}
+                studentId={studentRoleStudentId || ""}
+                studentName={studentName}
+              />
+            );
+          })()}
         </Card>
       </>
     );

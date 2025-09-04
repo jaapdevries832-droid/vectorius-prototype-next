@@ -6,33 +6,35 @@ import path from "path";
 
 export const runtime = "nodejs";
 
-/* ---------------- env ---------------- */
-function required(name: string, v?: string) {
-  if (!v) throw new Error(`Missing env var: ${name}`);
-  return v;
-}
-
-let endpoint = required("AZURE_OPENAI_ENDPOINT", process.env.AZURE_OPENAI_ENDPOINT);
-if (!endpoint.endsWith("/")) endpoint += "/";
-const apiKey = required("AZURE_OPENAI_API_KEY", process.env.AZURE_OPENAI_API_KEY);
-const deployment = required("AZURE_OPENAI_DEPLOYMENT", process.env.AZURE_OPENAI_DEPLOYMENT);
-
-// Match your working notebook version
+// Keep consistent with debug usage
 const API_VERSION = "2024-12-01-preview";
 
-/* ------------- OpenAI (Azure) client ------------- */
-/**
- * For Azure + JS SDK, point baseURL at the *deployment*:
- *   https://<resource>.cognitiveservices.azure.com/openai/deployments/<DEPLOYMENT>
- * and DO NOT pass `model` in the create() call.
- */
-const client = new OpenAI({
-  apiKey,
-  baseURL: `${endpoint}openai/deployments/${deployment}`,
-  defaultQuery: { "api-version": API_VERSION },
-});
+type ResolvedEnv = {
+  endpoint: string;
+  apiKey: string;
+  deployment: string;
+};
 
-/* ------------- prompt loader ------------- */
+function resolveEnv(): { ok: true; cfg: ResolvedEnv } | { ok: false; reason: string } {
+  // Support alternate names to avoid breakage if envs differ
+  let endpoint = process.env.AZURE_OPENAI_ENDPOINT || process.env.OPENAI_API_BASE || "";
+  const apiKey = process.env.AZURE_OPENAI_API_KEY || process.env.OPENAI_API_KEY || "";
+  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || process.env.AZURE_OPENAI_MODEL || "";
+
+  if (!endpoint || !apiKey || !deployment) return { ok: false, reason: "missing-config" };
+  if (!endpoint.endsWith("/")) endpoint += "/";
+  return { ok: true, cfg: { endpoint, apiKey, deployment } };
+}
+
+function createClient(cfg: ResolvedEnv) {
+  // Azure: point baseURL to the deployment; do not pass `model` (SDK requires a dummy value though)
+  return new OpenAI({
+    apiKey: cfg.apiKey,
+    baseURL: `${cfg.endpoint}openai/deployments/${cfg.deployment}`,
+    defaultQuery: { "api-version": API_VERSION },
+  });
+}
+
 async function readPrompt(filename: string) {
   const repoRoot = path.resolve(process.cwd(), ".."); // from /web to repo root
   const full = path.join(repoRoot, "prompts", filename);
@@ -41,18 +43,43 @@ async function readPrompt(filename: string) {
 
 type ChatMsg = { role: "system" | "user" | "assistant"; content: string };
 
-/* ---------------- POST ---------------- */
+// GET: allow clients to check if chat is enabled without exposing secrets
+export async function GET() {
+  const env = resolveEnv();
+  return new Response(JSON.stringify({ enabled: env.ok }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+// POST: perform chat completion
 export async function POST(req: Request) {
   try {
+    const env = resolveEnv();
+    if (!env.ok) {
+      return new Response(
+        JSON.stringify({ error: "Chat is disabled: missing server configuration." }),
+        {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+    const client = createClient(env.cfg);
+
     const body = await req.json().catch(() => ({}));
     const question = String(body?.question ?? "");
     const history = (Array.isArray(body?.history) ? body.history : []) as ChatMsg[];
-    const mode = String(body?.mode ?? "tutor").toLowerCase().trim();
+    const mode = String(body?.mode ?? "tutor")
+      .toLowerCase()
+      .trim();
 
     const modeFile =
-      mode === "checker" ? "checker_mode.md" :
-      mode === "explainer" ? "explainer_mode.md" :
-      "tutor_mode.md";
+      mode === "checker"
+        ? "checker_mode.md"
+        : mode === "explainer"
+          ? "explainer_mode.md"
+          : "tutor_mode.md";
 
     const [systemText, modeText] = await Promise.all([
       readPrompt("grade8_system.md"),
@@ -67,15 +94,14 @@ export async function POST(req: Request) {
     ];
 
     const completion = await client.chat.completions.create({
-    // IMPORTANT: Azure ignores `model`, but OpenAI SDK requires it for type safety
-    model: "dummy",
-    temperature: 0.4,
-    messages,
+      // Azure ignores `model`, but OpenAI SDK requires a value
+      model: "dummy",
+      temperature: 0.4,
+      messages,
     });
 
     const reply =
-      completion.choices?.[0]?.message?.content ??
-      "Sorry, I couldn’t generate a response.";
+      completion.choices?.[0]?.message?.content ?? "Sorry, I couldn't generate a response.";
 
     return new Response(JSON.stringify({ reply }), {
       status: 200,
@@ -83,12 +109,9 @@ export async function POST(req: Request) {
     });
   } catch (err: any) {
     const msg = err?.message || String(err);
-    return new Response(
-      JSON.stringify({
-        error: msg,
-        env: { endpoint, deployment, apiVersion: API_VERSION },
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }

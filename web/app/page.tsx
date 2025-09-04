@@ -501,7 +501,7 @@ export default function HomePage() {
         <Card title="Homework & Projects (Mock)">
           <HomeworkProjectsMock items={[]} />
         </Card>
-        <Card title="AI Chat (Mock)">
+        <Card title="AI Chat">
           {(() => {
             const s = studentList.find((o: any) => o.id === studentRoleStudentId);
             const studentName = s ? `${s.first_name} ${s.last_name}` : "Student";

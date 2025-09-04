@@ -13,7 +13,7 @@ import Alert from "../components/Alert";
 import Dropdown from "../components/Dropdown";
 import WeeklyPlanMock from "../components/WeeklyPlanMock";
 import HomeworkProjectsMock from "../components/HomeworkProjectsMock";
-import StudentChat from "../components/StudentChat.jsx";
+import StudentChat from "../components/StudentChat";
 import {
   resolveStudentIdsForRole,
   listAssignmentsByStudentIds,

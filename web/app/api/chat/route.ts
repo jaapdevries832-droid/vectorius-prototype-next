@@ -93,17 +93,20 @@ export async function POST(req: Request) {
       { role: "user", content: question },
     ];
 
+    const temperature = mode === "checker" ? 0.2 : mode === "explainer" ? 0.5 : 0.4;
+
     const completion = await client.chat.completions.create({
       // Azure ignores `model`, but OpenAI SDK requires a value
       model: "dummy",
-      temperature: 0.4,
+      temperature,
       messages,
     });
 
     const reply =
       completion.choices?.[0]?.message?.content ?? "Sorry, I couldn't generate a response.";
+    const payload = { reply, role: "assistant", content: reply, modeUsed: mode };
 
-    return new Response(JSON.stringify({ reply }), {
+    return new Response(JSON.stringify(payload), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });

@@ -1,0 +1,12 @@
+{
+  "name": "vectorius-root",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "husky": "^9.1.6"
+  }
+}
+

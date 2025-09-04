@@ -2,14 +2,10 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import ModeSelector from "./ModeSelector";
 
-/**
- * StudentChat: real chat UI backed by /api/chat.
- * - Props: studentId, studentName, initialMessages?
- * - Keeps messages in state and optional localStorage keyed by studentId.
- * - Adds a small system prompt referencing the current student by name.
- * - Degrades gracefully when server config is missing.
- */
+// Real student chat backed by /api/chat with mode selector.
+// Props: { studentId: string, studentName: string, initialMessages?: Array }
 export default function StudentChat({ studentId, studentName, initialMessages = [] }) {
   const [enabled, setEnabled] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -17,7 +13,16 @@ export default function StudentChat({ studentId, studentName, initialMessages = 
   const [input, setInput] = useState("");
   const inputRef = useRef(null);
 
-  // Minimal tutoring system prompt (client-side only; secrets remain server-side)
+  // Mode state, persisted across reloads (global for student chat)
+  const [mode, setMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem("vectorius:studentChatMode");
+      if (saved && ["tutor", "checker", "explainer"].includes(saved)) return saved;
+    } catch {}
+    return "tutor";
+  });
+
+  // Minimal tutoring system prompt (client-side context only)
   const systemPrompt = useMemo(() => {
     const name = (studentName || "the student").toString();
     return (
@@ -36,12 +41,11 @@ export default function StudentChat({ studentId, studentName, initialMessages = 
       const raw = localStorage.getItem(storageKey);
       if (raw) return JSON.parse(raw);
     } catch {}
-    // include a system message so server receives student context
     const base = [{ role: "system", content: systemPrompt }];
     return [...base, ...initialMessages];
   });
 
-  // Reload chat when student changes
+  // Reload conversation when student changes
   useEffect(() => {
     try {
       const raw = localStorage.getItem(storageKey);
@@ -55,14 +59,14 @@ export default function StudentChat({ studentId, studentName, initialMessages = 
     setError(null);
   }, [storageKey, systemPrompt]);
 
-  // Persist per-student
+  // Persist per-student conversation
   useEffect(() => {
     try {
       localStorage.setItem(storageKey, JSON.stringify(messages.slice(-20)));
     } catch {}
   }, [messages, storageKey]);
 
-  // Check server configuration once
+  // Feature flag: check if server chat is enabled (envs present)
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -85,21 +89,20 @@ export default function StudentChat({ studentId, studentName, initialMessages = 
     setLoading(true);
     setError(null);
 
-    // Last few turns to keep context light; include our system message
     const trimmedHistory = messages.slice(-9);
 
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, mode: "tutor", history: trimmedHistory }),
+        body: JSON.stringify({ question, mode, history: trimmedHistory, studentId }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(data?.error || "Request failed");
         return;
       }
-      const reply = data?.reply || "";
+      const reply = data?.reply || data?.content || "";
       setMessages([
         ...trimmedHistory,
         { role: "user", content: question },
@@ -123,9 +126,11 @@ export default function StudentChat({ studentId, studentName, initialMessages = 
 
   return (
     <div>
+      <ModeSelector mode={mode} onChange={setMode} />
+
       {!enabled && (
         <div className="mb-2 text-xs px-2 py-1 rounded border bg-amber-50 text-amber-800">
-          Chat is disabled—missing server configuration.
+          Chat disabled—missing server configuration.
         </div>
       )}
 
@@ -158,7 +163,15 @@ export default function StudentChat({ studentId, studentName, initialMessages = 
           onKeyDown={onKeyDown}
           rows={2}
           className="flex-1 border rounded px-2 py-1 text-sm"
-          placeholder={enabled ? "Ask for a hint…" : "Chat unavailable"}
+          placeholder={
+            !enabled
+              ? "Chat unavailable"
+              : mode === "checker"
+                ? "Paste your attempt to check"
+                : mode === "explainer"
+                  ? "Ask for a clear explanation"
+                  : "Ask for a hint"
+          }
           disabled={!enabled || loading}
         />
         <button
@@ -166,7 +179,7 @@ export default function StudentChat({ studentId, studentName, initialMessages = 
           disabled={!enabled || loading || !input.trim()}
           onClick={() => void send()}
         >
-          {loading ? "Sending…" : "Send"}
+          {loading ? "Sending..." : "Send"}
         </button>
       </div>
       {error && <div className="text-xs text-red-600 mt-1">{String(error)}</div>}

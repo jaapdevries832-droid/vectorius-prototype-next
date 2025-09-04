@@ -1,5 +1,16 @@
 # Vectorius Prototype
 
+Note: Upgrades applied (Lesson 17 tasks)
+- Converted UI to TypeScript for pages and components where JS/JSX remained (app, components).
+- Broke up `web/app/page.js` into reusable components: `Container`, `Topbar`, `Sidebar`, `Card`, and added `Alert`.
+- Centralized data helpers in `web/lib/api.ts` and added typed mappers (camelCase in UI; snake_case in DB).
+- Improved error handling with a reusable `Alert` and safer defaults; fixed minor intent naming.
+- Added tooling: ESLint + Prettier configs; Jest + React Testing Library with a sample test.
+- Added pre-commit hook (Git hook) to run lint-staged from `web` for formatting/linting.
+- Sanitized `web/.env.example` (no real keys) and added comments on `NEXT_PUBLIC_` usage.
+- Documented Git workflow and scripts in this README; kept changes local on branch.
+
+
 Vectorius is an education‑oriented platform that brings students, parents and mentors together.  This prototype combines a **Next.js** frontend with a **Supabase** backend to deliver role‑aware dashboards, a normalized database schema and repeatable operational tooling.  It grew out of a series of lessons aimed at turning a messy single‑folder app into a clean, maintainable mono‑repo.  The goal is to provide a strong foundation for building and iterating on a real product while documenting the journey along the way.
 
 ## Features
